@@ -1,0 +1,6 @@
+@ESS.WebAPI_HostAddress = http://localhost:5128
+
+GET {{ESS.WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

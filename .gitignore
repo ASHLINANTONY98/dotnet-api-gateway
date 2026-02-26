@@ -1,0 +1,22 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build folders
+bin/
+obj/
+
+# Cache files
+*.vsidx
+*.db
+
+# Logs
+*.log
+
+# Private secrets
+*.env
+*.config
+appsettings.Development.json

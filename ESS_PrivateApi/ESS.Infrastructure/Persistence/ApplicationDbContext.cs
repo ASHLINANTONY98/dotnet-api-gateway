@@ -9,6 +9,7 @@ namespace ESS.Infrastructure.Persistence
 
         public DbSet<Vendor> Vendors => Set<Vendor>();
         public DbSet<EssSoftTokens> EssSoftTokens => Set<EssSoftTokens>();
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

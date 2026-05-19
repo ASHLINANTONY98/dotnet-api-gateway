@@ -18,26 +18,14 @@ namespace ESS.WebAPI.Controllers
             _useCase = useCase;
             _logger = logger;
         }
-        [Authorize(Roles = "VERIFICATION")]
+        //[Authorize(Roles = "Supplier")]
+        //[Authorize]
         [HttpPost("validate")]
         public async Task<ActionResult<ValidateCodeResponseDto>> Validate([FromBody] ValidateCodeRequestDto dto, CancellationToken ct)
         {
-            try
-            {
-                var response = await _useCase.ExecuteAsync(dto, ct);
-                _logger.LogInformation("Validation result for employee {EmpCode}: {Message}", dto.EmpCode, response.Message);
-                return Ok(response);
-            }
-            catch (ValidationException ex)
-            {
-                _logger.LogWarning(ex, "Validation failed for employee {EmpCode}. Errors: {Errors}", dto.EmpCode, ex.Errors);
-                return BadRequest(new { error = "Validation failed", details = ex.Errors });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error during token validation for employee {EmpCode}", dto.EmpCode);
-                return StatusCode(500, new { error = "An unexpected error occurred" });
-            }
+            var response = await _useCase.ExecuteAsync(dto, ct);
+            _logger.LogInformation("Validation result for employee {EmpCode}: {Message}", dto.EmpCode, response.Message);
+            return Ok(response);
         }
     }
 }

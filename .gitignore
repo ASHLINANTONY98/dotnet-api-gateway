@@ -8,6 +8,10 @@
 # Build folders
 bin/
 obj/
+logs/
+out/
+docker
+[internal]
 
 # Cache files
 *.vsidx
@@ -16,7 +20,5 @@ obj/
 # Logs
 *.log
 
-# Private secrets
+# Secrets
 *.env
-*.config
-appsettings.Development.json

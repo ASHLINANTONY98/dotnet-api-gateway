@@ -1,5 +1,9 @@
 # Dotnet API Gateway
 
+![.NET](https://img.shields.io/badge/.NET-8-blue)
+![Redis](https://img.shields.io/badge/Redis-Cache-red)
+![Docker](https://img.shields.io/badge/Docker-Enabled-blue)
+
 ## Overview
 Public/Private ASP.NET Core API architecture with JWT authentication, Redis caching, Polly resiliency patterns, Serilog logging, OpenTelemetry tracing, health checks, and API versioning.
 

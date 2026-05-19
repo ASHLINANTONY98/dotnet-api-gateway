@@ -5,6 +5,7 @@ Public/Private ASP.NET Core API architecture with JWT authentication, Redis cach
 
 ## System Architecture
 
+```text
 Client
    │
    ▼
@@ -16,6 +17,7 @@ Private API
    ├── SQL Server
    │
    └── Redis Cache
+```
 
 ## Features
 - JWT Authentication

@@ -3,8 +3,19 @@
 ## Overview
 Public/Private ASP.NET Core API architecture with JWT authentication, Redis caching, Polly resiliency patterns, Serilog logging, OpenTelemetry tracing, health checks, and API versioning.
 
-## Architecture
-Client → Public API → Private API → Database/Redis
+## System Architecture
+
+Client
+   │
+   ▼
+Public API Gateway
+   │
+   ▼
+Private API
+   │
+   ├── SQL Server
+   │
+   └── Redis Cache
 
 ## Features
 - JWT Authentication

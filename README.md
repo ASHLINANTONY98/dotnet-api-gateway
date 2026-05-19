@@ -20,6 +20,7 @@ Client → Public API → Private API → Database/Redis
 - Swagger Documentation
 
 ## Tech Stack
+
 - ASP.NET Core Web API
 - Entity Framework Core
 - SQL Server
@@ -28,6 +29,24 @@ Client → Public API → Private API → Database/Redis
 - Polly
 - OpenTelemetry
 - Docker
+
+---
+
+## Swagger UI
+
+![Swagger](screenshots/swagger.png)
+
+---
+
+## Health Checks
+
+![Health](screenshots/Health1.png)
+
+---
+
+## Redis Running
+
+![Redis](screenshots/redis.png)
 
 ## Running the Project
 1. Clone repository

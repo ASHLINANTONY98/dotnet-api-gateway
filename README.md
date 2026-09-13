@@ -66,9 +66,15 @@ Private API
 ![Redis](screenshots/redis.png)
 
 ## Running the Project
-bash
+```bash
 git clone https://github.com/ASHLINANTONY98/dotnet-api-gateway.git
 cd dotnet-api-gateway
+
+docker run -d -p 6379:6379 redis
+
+dotnet run --project ESS.PrivateApi
+dotnet run --project ESS.PublicApi
+```
 
 docker run -d -p 6379:6379 redis
 

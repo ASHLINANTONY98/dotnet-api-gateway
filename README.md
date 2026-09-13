@@ -73,10 +73,10 @@ Private API
 5. Run Public API
 
 ## API Flow
-1. Client authenticates using API Key
-2. Public API forwards request to Private API
-3. Private API generates JWT + Refresh Token
-4. Client uses JWT for secured endpoints
+1. Client sends login credentials to the Private API.
+2. Private API validates credentials and issues a JWT + Refresh Token API.
+3. Client includes the JWT in the Authorization header for subsequent requests.
+4. Public API validates the JWT and forwards authenticated requests to the Private API.
 
 ## Future Improvements
 - Docker Compose

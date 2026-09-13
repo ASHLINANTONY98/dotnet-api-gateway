@@ -66,11 +66,14 @@ Private API
 ![Redis](screenshots/redis.png)
 
 ## Running the Project
-1. Clone repository
-2. Configure appsettings.Development.json
-3. Run Redis
-4. Run Private API
-5. Run Public API
+bash
+git clone https://github.com/ASHLINANTONY98/dotnet-api-gateway.git
+cd dotnet-api-gateway
+
+docker run -d -p 6379:6379 redis
+
+dotnet run --project ESS.PrivateApi
+dotnet run --project ESS.PublicApi
 
 ## API Flow
 1. Client sends login credentials to the Private API.

@@ -6,11 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ESS.Infrastructure.Repositories
 {
-    public class OracleTokenRepository : IValidateCodeRepository
+    public class SqlServerTokenRepository : IValidateCodeRepository
     {
         private readonly ApplicationDbContext _db;
 
-        public OracleTokenRepository(ApplicationDbContext db)
+        public SqlServerTokenRepository(ApplicationDbContext db)
         {
             _db = db;
         }

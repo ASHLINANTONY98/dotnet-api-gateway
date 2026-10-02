@@ -18,11 +18,15 @@ namespace ESS.WebAPI.Controllers
 
         [Authorize(Roles = "Supplier")]
         [HttpPost]
-        public async Task<IActionResult> Validate([FromBody] ValidateCodeRequestDto request)
+        public async Task<IActionResult> Validate(
+            [FromBody] ValidateCodeRequestDto request,
+            CancellationToken ct)
         {
             _logger.LogInformation("Forwarding validation request for employee {EmpCode}", request.EmpCode);
             var response = await _forwarder.PostAsync<ValidateCodeResponseDto>(
-                "api/ValidateCode/validate", request);
+                "api/ValidateCode/validate",
+                request,
+                ct);
 
             if (response is null)
             {
@@ -32,6 +36,7 @@ namespace ESS.WebAPI.Controllers
 
             return Ok(response); // Return the Private API response directly
         }
+
     }
 }
     

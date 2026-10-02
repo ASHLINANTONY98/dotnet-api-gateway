@@ -27,7 +27,7 @@ namespace ESS.WebAPI.Controllers
                 "Login attempt | Path: {Path} | TraceId: {TraceId}",
                 HttpContext.Request.Path,
                 HttpContext.TraceIdentifier);
-
+            //yoBrEI1RMoK6QQM6XVhuj9ZxSzxRr3tZbZnHwlBYEoM=
             var vendor = await _vendors.GetByApiKeyAsync(request.ApiKey);
             if (vendor is null)
             {
@@ -77,10 +77,8 @@ namespace ESS.WebAPI.Controllers
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
         {
-            var token = request.RefreshToken;
             _logger.LogInformation(
-                "Refresh attempt | Token: {Token} | TraceId: {TraceId}",
-                token.Length > 8 ? token[..8] : token,
+                "Refresh attempt | TraceId: {TraceId}",
                 HttpContext.TraceIdentifier);
 
             var hashed = TokenHasher.Hash(request.RefreshToken);
@@ -107,7 +105,7 @@ namespace ESS.WebAPI.Controllers
             }
 
             // Check expiry
-            if (storedToken.ExpiryDate < DateTime.UtcNow)
+            if (storedToken.ExpiryDate <= DateTime.UtcNow)
             {
                 _logger.LogWarning(
                     "Expired refresh token | TraceId: {TraceId}",
@@ -120,8 +118,9 @@ namespace ESS.WebAPI.Controllers
             
             if (vendor is null)
             {
-                _logger.LogWarning("Vendor not found | Token: {Token} | TraceId: {TraceId}",
-                    storedToken.Token.Length > 8 ? storedToken.Token[..8] : storedToken.Token, HttpContext.TraceIdentifier);
+                _logger.LogWarning(
+                    "Vendor not found for refresh token | TraceId: {TraceId}",
+                    HttpContext.TraceIdentifier);
                 return Unauthorized(new ErrorResponseDto("Vendor not found"));
             }
             
@@ -131,25 +130,34 @@ namespace ESS.WebAPI.Controllers
                 vendor.VendorName,
                 vendor.VendorRole
             );
-            
+
             // ROTATE REFRESH TOKEN
 
-            // Revoke old
-            storedToken.IsRevoked = true;
-            await _refreshTokenRepo.UpdateAsync(storedToken);
-
-            // Create new
             var newRefreshToken = Guid.NewGuid().ToString();
 
             var newTokenEntity = new RefreshToken
             {
                 VendorId = vendor.VendorId,
-                Token = TokenHasher.Hash(newRefreshToken), // HASH IT
+                Token = TokenHasher.Hash(newRefreshToken),
                 ExpiryDate = DateTime.UtcNow.AddDays(7),
                 IsRevoked = false
             };
 
-            await _refreshTokenRepo.AddAsync(newTokenEntity);
+            // Atomically consume the old token and save the new one.
+            var rotated = await _refreshTokenRepo.RotateAsync(
+                hashed,
+                newTokenEntity,
+                DateTime.UtcNow);
+
+            if (!rotated)
+            {
+                _logger.LogWarning(
+                    "Refresh token already consumed, revoked, or expired | TraceId: {TraceId}",
+                    HttpContext.TraceIdentifier);
+
+                return Unauthorized(
+                    new ErrorResponseDto("Invalid or expired refresh token"));
+            }
             _logger.LogInformation(
                 "Refresh completed | VendorId: {VendorId} | TraceId: {TraceId}",
                 vendor.VendorId,

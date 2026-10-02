@@ -1,14 +1,22 @@
-# Base runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 
-# Set working directory
+USER root
+
+# Install certificate trust utilities
+RUN apt-get update \
+    && apt-get install -y ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Trust the PrivateApi public certificate
+COPY ess-privateapi.crt /usr/local/share/ca-certificates/ess-privateapi.crt
+RUN update-ca-certificates
+
 WORKDIR /app
 
-# Copy published output
 COPY out .
 
-# Expose port
-EXPOSE 80
+ENV ASPNETCORE_HTTP_PORTS=8080
 
-# Run application
+EXPOSE 8080
+
 ENTRYPOINT ["dotnet", "ESS.WebAPI.dll"]

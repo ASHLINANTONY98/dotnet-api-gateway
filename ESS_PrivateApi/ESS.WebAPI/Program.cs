@@ -9,11 +9,11 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -69,6 +69,18 @@ builder.Services.AddHealthChecks()
 //jwt validation
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 
+var jwtKey = jwtSettings["Key"]
+    ?? throw new InvalidOperationException(
+        "JWT signing key is missing from configuration.");
+
+var jwtIssuer = jwtSettings["Issuer"]
+    ?? throw new InvalidOperationException(
+        "JWT issuer is missing from configuration.");
+
+var jwtAudience = jwtSettings["Audience"]
+    ?? throw new InvalidOperationException(
+        "JWT audience is missing from configuration.");
+
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -79,18 +91,48 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
+
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtSettings["Key"]!)
+                Encoding.UTF8.GetBytes(jwtKey)
             ),
+
             RoleClaimType = ClaimTypes.Role
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var vendorId = context.Principal?
+                    .FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? context.Principal?
+                    .FindFirst("sub")?.Value;
+
+                if (string.IsNullOrWhiteSpace(vendorId))
+                {
+                    context.Fail("Vendor ID claim is missing.");
+                    return;
+                }
+
+                var vendors = context.HttpContext.RequestServices
+                    .GetRequiredService<IVendorRepository>();
+
+                var vendor = await vendors.GetByVendorIdAsync(vendorId);
+
+                if (vendor is null)
+                {
+                    context.Fail("Vendor not found or inactive.");
+                }
+            }
         };
     });
 
 // DI registrations
-builder.Services.AddScoped<IVendorRepository, OracleVendorRepository>();
-builder.Services.AddScoped<IValidateCodeRepository, OracleTokenRepository>();
+builder.Services.AddScoped<IVendorRepository, SqlServerVendorRepository>();
+builder.Services.AddScoped<IValidateCodeRepository, SqlServerTokenRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<ValidateCode>();
 //OpenTelemetry
@@ -108,6 +150,18 @@ builder.Services.AddOpenTelemetry()
     });
 var app = builder.Build();
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
+// Enable Swagger only in Development
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthentication(); // validate JWT
 // Middleware to enrich logs with user information
 app.Use(async (context, next) =>
 {
@@ -121,17 +175,6 @@ app.Use(async (context, next) =>
         await next();
     }
 });
-app.UseMiddleware<GlobalExceptionMiddleware>();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-app.UseAuthentication(); // validate JWT
 app.UseAuthorization();//check roles and claims
 app.MapControllers();
 //health advanced
@@ -148,13 +191,16 @@ app.MapHealthChecks("/health", new HealthCheckOptions
             {
                 name = e.Key,
                 status = e.Value.Status.ToString(),
-                error = e.Value.Exception?.Message
+                error = e.Value.Status == HealthStatus.Unhealthy
+                    ? "Health check failed"
+                    : null
             })
         });
-
+            
         await context.Response.WriteAsync(result);
     }
 });
 //////////////////////
 await app.RunAsync();
 await Log.CloseAndFlushAsync();
+public partial class Program { }

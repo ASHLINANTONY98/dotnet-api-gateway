@@ -1,24 +1,35 @@
-# Visual Studio
-.vs/
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# Build folders
-bin/
-obj/
-logs/
-out/
-docker
-[internal]
-
-# Cache files
-*.vsidx
-*.db
-
-# Logs
-*.log
-
-# Secrets
+# Secrets and environment files
+.env
+.env.*
 *.env
+!.env.example
+
+**/secrets.json
+**/secret.json
+**/secrets/
+.docker/secrets/
+
+# Environment-specific configuration
+appsettings.*.json
+!appsettings.example.json
+
+# Certificates and private keys
+*.pfx
+*.p12
+*.key
+
+# Visual Studio folders and user-specific files
+**/.vs/
+*.csproj.user
+
+# Build output
+**/bin/
+**/obj/
+**/out/
+
+# Application logs
+**/logs/
+
+# Test results and code coverage
+**/TestResults/
+coverage-report/

@@ -16,13 +16,17 @@ namespace ESS.WebAPI.Controllers
 
         [AllowAnonymous]
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] ApiKeyLoginRequest request)
+        public async Task<IActionResult> Login(
+            [FromBody] ApiKeyLoginRequest request,
+            CancellationToken ct)
         {
             _logger.LogInformation("Login attempt at {Path} with TraceId {TraceId}",
                     HttpContext.Request.Path, HttpContext.TraceIdentifier);
 
             var response = await _forwarder.PostAsync<AuthResponseDto>(
-                "api/auth/login", request);
+                "api/auth/login",
+                request,
+                ct);
             if (response is null)
             {
                 return StatusCode(500, "Unexpected null response");
@@ -34,13 +38,17 @@ namespace ESS.WebAPI.Controllers
 
         [AllowAnonymous]
         [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
+        public async Task<IActionResult> Refresh(
+            [FromBody] RefreshTokenRequestDto request,
+            CancellationToken ct)
         {
             _logger.LogInformation(
                 "Forwarding refresh request | TraceId: {TraceId}",
                 HttpContext.TraceIdentifier);
             var response = await _forwarder.PostAsync<AuthResponseDto>(
-                "api/auth/refresh", request);
+                "api/auth/refresh",
+                request,
+                ct);
             if (response is null)
             {
                 return StatusCode(500, "Unexpected null response");

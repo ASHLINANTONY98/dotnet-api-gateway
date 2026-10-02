@@ -47,23 +47,45 @@ namespace ESS.Application.UseCases.ESS_SOFT_TOKENS
             var token = await _repo.FindAsync(dto.EmpCode, dto.AuthenticationCode, ct);
             if (token is null)
             {
-                await _cache.SetStringAsync(
-                    cacheKey,
-                    "invalid",
-                    new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2)
-                    },
-                ct);
+                
                 return new ValidateCodeResponseDto
                 {
                     Status = ValidationStatus.Invalid,
                     Message = "Invalid Authentication Code"
                 };
             }
-            var timeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
-            var generatedUtc = TimeZoneInfo.ConvertTimeToUtc(token.GeneratedOn, timeZone);
-            if (generatedUtc < DateTime.UtcNow.AddMinutes(-10))
+            // GeneratedOn is stored as India-local time.
+            // SQL Server datetime2 does not preserve DateTime.Kind.
+            var timeZone =
+                TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+
+            var generatedLocal = DateTime.SpecifyKind(
+                token.GeneratedOn,
+                DateTimeKind.Unspecified);
+
+            var generatedUtc = TimeZoneInfo.ConvertTimeToUtc(
+                generatedLocal,
+                timeZone);
+
+            var nowUtc = DateTime.UtcNow;
+
+            // Reject timestamps more than 2 minutes in the future.
+            var clockSkewTolerance = TimeSpan.FromMinutes(2);
+
+            if (generatedUtc > nowUtc.Add(clockSkewTolerance))
+            {
+                return new ValidateCodeResponseDto
+                {
+                    Status = ValidationStatus.Invalid,
+                    Message = "Invalid Authentication Code"
+                };
+            }
+
+            // Authentication code expires after 10 minutes.
+            var expiresAtUtc = generatedUtc.AddMinutes(10);
+            var remainingValidity = expiresAtUtc - nowUtc;
+
+            if (remainingValidity <= TimeSpan.Zero)
             {
                 return new ValidateCodeResponseDto
                 {
@@ -71,14 +93,20 @@ namespace ESS.Application.UseCases.ESS_SOFT_TOKENS
                     Message = "Authentication Code expired"
                 };
             }
+            var cacheDuration = TimeSpan.FromSeconds(30);
+
+            var cacheExpiry = remainingValidity < cacheDuration
+                ? remainingValidity
+                : cacheDuration;
+
             await _cache.SetStringAsync(
                 cacheKey,
                 "valid",
                 new DistributedCacheEntryOptions
                 {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                    AbsoluteExpirationRelativeToNow = cacheExpiry
                 },
-            ct);    
+            ct);
 
             return new ValidateCodeResponseDto
             {

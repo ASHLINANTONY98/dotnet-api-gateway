@@ -1,6 +1,7 @@
-﻿using System.Net;
+﻿
 using System.Text.Json;
 using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace ESS.WebAPI.Middleware
 {
@@ -9,7 +10,9 @@ namespace ESS.WebAPI.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<GlobalExceptionMiddleware> _logger;
 
-        public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+        public GlobalExceptionMiddleware(
+            RequestDelegate next,
+            ILogger<GlobalExceptionMiddleware> logger)
         {
             _next = next;
             _logger = logger;
@@ -20,80 +23,81 @@ namespace ESS.WebAPI.Middleware
             try
             {
                 await _next(context);
-
-                // HANDLE STATUS CODES
-                if (!context.Response.HasStarted)
-                {
-                    switch (context.Response.StatusCode)
-                    {
-                        case (int)HttpStatusCode.BadRequest:
-                            await WriteErrorResponse(context, "Bad Request");
-                            break;
-
-                        case (int)HttpStatusCode.Unauthorized:
-                            await WriteErrorResponse(context, "Unauthorized");
-                            break;
-
-                        case (int)HttpStatusCode.Forbidden:
-                            await WriteErrorResponse(context, "Forbidden");
-                            break;
-
-                        case (int)HttpStatusCode.NotFound:
-                            await WriteErrorResponse(context, "Not Found");
-                            break;
-                    }
-                }
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "Unauthorized request");
-
-                context.Response.StatusCode = 401;
-                await WriteErrorResponse(context, ex.Message);
-            }
-            catch (BrokenCircuitException ex)
-            {
-                _logger.LogWarning(ex, "Circuit breaker open");
-
-                context.Response.StatusCode = 503;
-                await WriteErrorResponse(context, "Service temporarily unavailable (circuit open)");
-            }
-            catch (TaskCanceledException ex)
-            {
-                _logger.LogError(ex, "Request timeout");
-
-                context.Response.StatusCode = 408;
-                await WriteErrorResponse(context, "Request timeout");
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError(ex, "Private API unreachable");
-
-                context.Response.StatusCode = 502;
-                await WriteErrorResponse(context, "Bad gateway (private API down)");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception");
+                // A client disconnect is cancellation, not a server timeout.
+                if (context.RequestAborted.IsCancellationRequested &&
+                    ex is OperationCanceledException)
+                {
+                    _logger.LogInformation(
+                        "Request cancelled by client | TraceId: {TraceId}",
+                        context.TraceIdentifier);
 
-                context.Response.StatusCode = 500;
-                await WriteErrorResponse(context, "Internal server error");
+                    return;
+                }
+
+                // The response cannot safely be replaced once started.
+                if (context.Response.HasStarted)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Exception after response started | TraceId: {TraceId}",
+                        context.TraceIdentifier);
+
+                    throw;
+                }
+
+                var (statusCode, message) = ex switch
+                {
+                    UnauthorizedAccessException =>
+                        (StatusCodes.Status401Unauthorized,
+                         "Unauthorized"),
+
+                    BrokenCircuitException =>
+                        (StatusCodes.Status503ServiceUnavailable,
+                         "Service temporarily unavailable"),
+
+                    TimeoutRejectedException =>
+                        (StatusCodes.Status504GatewayTimeout,
+                         "Upstream service timed out"),
+
+                    // A TaskCanceledException not caused by a client
+                    // disconnect can indicate an upstream HTTP timeout.
+                    TaskCanceledException =>
+                        (StatusCodes.Status504GatewayTimeout,
+                         "Upstream service timed out"),
+
+                    HttpRequestException =>
+                        (StatusCodes.Status502BadGateway,
+                         "Bad gateway"),
+
+                    _ =>
+                        (StatusCodes.Status500InternalServerError,
+                         "Internal server error")
+                };
+
+                _logger.LogError(
+                    ex,
+                    "Request failed | StatusCode: {StatusCode} | TraceId: {TraceId}",
+                    statusCode,
+                    context.TraceIdentifier);
+
+                context.Response.Clear();
+                context.Response.StatusCode = statusCode;
+                context.Response.ContentType = "application/json";
+
+                var payload = new
+                {
+                    success = false,
+                    message,
+                    traceId = context.TraceIdentifier,
+                    path = context.Request.Path.ToString()
+                };
+
+                await context.Response.WriteAsync(
+                    JsonSerializer.Serialize(payload));
             }
-        }
-
-        private static async Task WriteErrorResponse(HttpContext context, string message)
-        {
-            context.Response.ContentType = "application/json";
-
-            var payload = new
-            {
-                success = false,
-                message,
-                traceId = context.TraceIdentifier,
-                path = context.Request.Path.ToString()
-            };
-
-            await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
         }
     }
 }

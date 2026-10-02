@@ -18,8 +18,7 @@ namespace ESS.WebAPI.Controllers
             _useCase = useCase;
             _logger = logger;
         }
-        //[Authorize(Roles = "Supplier")]
-        //[Authorize]
+        [Authorize(Roles = "Supplier")]
         [HttpPost("validate")]
         public async Task<ActionResult<ValidateCodeResponseDto>> Validate([FromBody] ValidateCodeRequestDto dto, CancellationToken ct)
         {
@@ -27,5 +26,6 @@ namespace ESS.WebAPI.Controllers
             _logger.LogInformation("Validation result for employee {EmpCode}: {Message}", dto.EmpCode, response.Message);
             return Ok(response);
         }
+
     }
 }

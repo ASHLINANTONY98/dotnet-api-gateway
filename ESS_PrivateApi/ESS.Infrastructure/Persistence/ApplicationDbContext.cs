@@ -13,7 +13,18 @@ namespace ESS.Infrastructure.Persistence
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(
+                typeof(ApplicationDbContext).Assembly);
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.Property(x => x.Token)
+                    .HasMaxLength(44)
+                    .IsRequired();
+
+                entity.HasIndex(x => x.Token)
+                    .IsUnique();
+            });
         }
     }
 }

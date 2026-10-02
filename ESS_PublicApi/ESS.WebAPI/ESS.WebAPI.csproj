@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>bff98ea7-ecaa-4a56-b09e-6917c14b984f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +29,10 @@
   <ItemGroup>
     <ProjectReference Include="..\ESS.Application\ESS.Application.csproj" />
     <ProjectReference Include="..\ESS.Infrastructure\ESS.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="logs\" />
   </ItemGroup>
 
 </Project>
